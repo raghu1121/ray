@@ -226,6 +226,7 @@ if __name__ == '__main__':
             'timesteps_total': 600,
         },
         'config': {
+            'gpu': 'true',
             'activation': grid_search(['relu', 'elu', 'tanh']),
         },
     }

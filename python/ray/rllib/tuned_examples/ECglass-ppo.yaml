@@ -1,0 +1,11 @@
+# Runs on a single g3.16xl node
+# See https://github.com/ray-project/rl-experiments for results
+Ecglass-ppo:
+    env: ECglass-v0
+    run: PPO
+    stop:
+        episode_reward_mean: 4000
+    config:
+        num_gpus: 1
+        num_workers: 5
+        gpu_fraction: 1

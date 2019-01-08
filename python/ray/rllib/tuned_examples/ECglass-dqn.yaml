@@ -1,0 +1,37 @@
+# Runs on a single g3.16xl node
+# See https://github.com/ray-project/rl-experiments for results
+Ecglass-dqn:
+    env:  ECglass-v0
+    run: DQN
+    stop:
+        timesteps_total: 2000000
+    config:
+        hiddens:
+            grid_search: [[512,256,128],[512,256,128,64]]
+        gpu: true
+        exploration_fraction: 1
+        train_batch_size:
+            grid_search: [64]
+        timesteps_per_iteration: 3499
+        lr:
+            grid_search: [0.00001,0.000005]
+        learning_starts: 3499
+        buffer_size: 1000000
+        exploration_final_eps:
+            grid_search: [0.0001,0,0.001,0.05]
+        n_step: 1
+        num_atoms: 1
+        schedule_max_timesteps: 1000000
+        target_network_update_freq:
+            grid_search: [470,450]
+        #optimizer_class: "AsyncReplayOptimizer"
+        #num_workers: 2
+        #num_gpus: 1
+        #num_cpus: 6
+
+    trial_resources:
+        cpu: 6
+        gpu: 1
+
+    checkpoint_freq: 1
+    local_dir: "/media/raghu/6A3A-B7CD/ray_results"
