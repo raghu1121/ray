@@ -3,12 +3,11 @@ package org.ray.api.test;
 import com.google.common.collect.ImmutableList;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.ray.api.Ray;
 import org.ray.api.RayObject;
-import org.ray.api.id.UniqueId;
+import org.ray.api.id.ObjectId;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 /**
  * Test putting and getting objects.
@@ -24,7 +23,7 @@ public class ObjectStoreTest extends BaseTest {
   @Test
   public void testGetMultipleObjects() {
     List<Integer> ints = ImmutableList.of(1, 2, 3, 4, 5);
-    List<UniqueId> ids = ints.stream().map(obj -> Ray.put(obj).getId())
+    List<ObjectId> ids = ints.stream().map(obj -> Ray.put(obj).getId())
         .collect(Collectors.toList());
     Assert.assertEquals(ints, Ray.get(ids));
   }

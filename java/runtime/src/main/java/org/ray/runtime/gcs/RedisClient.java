@@ -2,45 +2,44 @@ package org.ray.runtime.gcs;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import org.apache.commons.lang3.StringUtils;
+
+import org.ray.runtime.util.StringUtil;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisPool;
 import redis.clients.jedis.JedisPoolConfig;
 
-public class RedisClient implements KeyValueStoreLink {
+/**
+ * Redis client class.
+ */
+public class RedisClient {
 
-  private String redisAddress;
+  private static final int JEDIS_POOL_SIZE = 1;
+
   private JedisPool jedisPool;
-  private int handle = 0;
 
-  public RedisClient() {
+  public RedisClient(String redisAddress) {
+    this(redisAddress, null);
   }
 
-  public RedisClient(String addr) {
-    setAddr(addr);
-  }
+  public RedisClient(String redisAddress, String password) {
+    String[] ipAndPort = redisAddress.split(":");
+    if (ipAndPort.length != 2) {
+      throw new IllegalArgumentException("The argument redisAddress " +
+          "should be formatted as ip:port.");
+    }
 
-  @Override
-  public synchronized void setAddr(String addr) {
-    if (StringUtils.isEmpty(redisAddress)) {
-      redisAddress = addr;
-      String[] ipPort = addr.split(":");
-      JedisPoolConfig jedisPoolConfig = new JedisPoolConfig();
-      //TODO NUM maybe equels to the thread num
-      jedisPoolConfig.setMaxTotal(1);
-      jedisPool = new JedisPool(jedisPoolConfig, ipPort[0], Integer.parseInt(ipPort[1]), 30000);
+    JedisPoolConfig jedisPoolConfig = new JedisPoolConfig();
+    jedisPoolConfig.setMaxTotal(JEDIS_POOL_SIZE);
+
+    if (StringUtil.isNullOrEmpty(password)) {
+      jedisPool = new JedisPool(jedisPoolConfig,
+          ipAndPort[0], Integer.parseInt(ipAndPort[1]), 30000);
+    } else {
+      jedisPool = new JedisPool(jedisPoolConfig, ipAndPort[0],
+          Integer.parseInt(ipAndPort[1]), 30000, password);
     }
   }
 
-  @Override
-  public void checkConnected() throws Exception {
-    if (jedisPool == null) {
-      throw new Exception("the GlobalState API can't be used before ray init.");
-    }
-  }
-
-  @Override
   public Long set(final String key, final String value, final String field) {
     try (Jedis jedis = jedisPool.getResource()) {
       if (field == null) {
@@ -50,52 +49,20 @@ public class RedisClient implements KeyValueStoreLink {
         return jedis.hset(key, field, value);
       }
     }
-
   }
 
-  @Override
-  public Long set(byte[] key, byte[] value, byte[] field) {
-    try (Jedis jedis = jedisPool.getResource()) {
-      if (field == null) {
-        jedis.set(key, value);
-        return (long) 1;
-      } else {
-        return jedis.hset(key, field, value);
-      }
-    }
-
-  }
-
-  @Override
   public String hmset(String key, Map<String, String> hash) {
     try (Jedis jedis = jedisPool.getResource()) {
       return jedis.hmset(key, hash);
     }
-
   }
 
-  @Override
-  public String hmset(byte[] key, Map<byte[], byte[]> hash) {
+  public Map<byte[], byte[]> hgetAll(byte[] key) {
     try (Jedis jedis = jedisPool.getResource()) {
-      return jedis.hmset(key, hash);
+      return jedis.hgetAll(key);
     }
   }
 
-  @Override
-  public List<String> hmget(String key, String... fields) {
-    try (Jedis jedis = jedisPool.getResource()) {
-      return jedis.hmget(key, fields);
-    }
-  }
-
-  @Override
-  public List<byte[]> hmget(byte[] key, byte[]... fields) {
-    try (Jedis jedis = jedisPool.getResource()) {
-      return jedis.hmget(key, fields);
-    }
-  }
-
-  @Override
   public String get(final String key, final String field) {
     try (Jedis jedis = jedisPool.getResource()) {
       if (field == null) {
@@ -104,10 +71,12 @@ public class RedisClient implements KeyValueStoreLink {
         return jedis.hget(key, field);
       }
     }
-
   }
 
-  @Override
+  public byte[] get(byte[] key) {
+    return get(key, null);
+  }
+
   public byte[] get(byte[] key, byte[] field) {
     try (Jedis jedis = jedisPool.getResource()) {
       if (field == null) {
@@ -116,114 +85,31 @@ public class RedisClient implements KeyValueStoreLink {
         return jedis.hget(key, field);
       }
     }
-
   }
 
-  @Override
-  public Long delete(final String key, final String field) {
-    try (Jedis jedis = jedisPool.getResource()) {
-      if (field == null) {
-        return jedis.del(key);
-      } else {
-        return jedis.hdel(key, field);
-      }
-    }
-
-  }
-
-  @Override
-  public Long delete(byte[] key, byte[] field) {
-    try (Jedis jedis = jedisPool.getResource()) {
-      if (field == null) {
-        return jedis.del(key);
-      } else {
-        return jedis.hdel(key, field);
-      }
-    }
-
-  }
-
-  @Override
-  public Set<byte[]> keys(byte[] pattern) {
-    try (Jedis jedis = jedisPool.getResource()) {
-      return jedis.keys(pattern);
-    }
-  }
-
-  @Override
-  public Set<String> keys(String pattern) {
-    try (Jedis jedis = jedisPool.getResource()) {
-      return jedis.keys(pattern);
-    }
-  }
-
-  @Override
-  public Map<byte[], byte[]> hgetAll(byte[] key) {
-    try (Jedis jedis = jedisPool.getResource()) {
-      return jedis.hgetAll(key);
-    }
-  }
-
-  @Override
-  public List<String> lrange(String key, long start, long end) {
+  /**
+   * Return the specified elements of the list stored at the specified key.
+   *
+   * @return Multi bulk reply, specifically a list of elements in the specified range.
+   */
+  public List<byte[]> lrange(byte[] key, long start, long end) {
     try (Jedis jedis = jedisPool.getResource()) {
       return jedis.lrange(key, start, end);
     }
   }
 
-  @Override
-  public Set<byte[]> zrange(byte[] key, long start, long end) {
+  /**
+   * Whether the key exists in Redis.
+   */
+  public boolean exists(byte[] key) {
     try (Jedis jedis = jedisPool.getResource()) {
-      return jedis.zrange(key, start, end);
+      return jedis.exists(key);
     }
   }
 
-  @Override
-  public Long rpush(String key, String... strings) {
+  public long incr(byte[] key) {
     try (Jedis jedis = jedisPool.getResource()) {
-      return jedis.rpush(key, strings);
+      return jedis.incr(key).intValue();
     }
   }
-
-  @Override
-  public Long rpush(byte[] key, byte[]... strings) {
-    try (Jedis jedis = jedisPool.getResource()) {
-      return jedis.rpush(key, strings);
-    }
-  }
-
-  @Override
-  public Long publish(String channel, String message) {
-    try (Jedis jedis = jedisPool.getResource()) {
-      return jedis.publish(channel, message);
-    }
-  }
-
-  @Override
-  public Long publish(byte[] channel, byte[] message) {
-    try (Jedis jedis = jedisPool.getResource()) {
-      return jedis.publish(channel, message);
-    }
-  }
-
-  @Override
-  public Object getImpl() {
-    return jedisPool;
-  }
-
-  @Override
-  public byte[] sendCommand(String command, int commandType, byte[] objectId) {
-    if (handle == 0) {
-      String[] ipPort = redisAddress.split(":");
-      handle = connect(ipPort[0], Integer.parseInt(ipPort[1]));
-    }
-    return execute_command(handle, command, commandType, objectId);
-  }
-  
-  private static native int connect(String redisAddress, int port);
-
-  private static native void disconnect(int handle);
-  
-  private static native byte[] execute_command(int handle, 
-      String command, int commandType, byte[] objectId);
 }

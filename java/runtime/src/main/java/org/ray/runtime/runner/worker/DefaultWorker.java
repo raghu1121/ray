@@ -15,15 +15,14 @@ public class DefaultWorker {
   public static void main(String[] args) {
     try {
       System.setProperty("ray.worker.mode", "WORKER");
+      Thread.setDefaultUncaughtExceptionHandler((Thread t, Throwable e) -> {
+        LOGGER.error("Uncaught worker exception in thread {}: {}", t, e);
+      });
       Ray.init();
-    } catch (Exception e) {
-      LOGGER.error("Worker failed to start.", e);
-    }
-    LOGGER.info("Worker started.");
-    try {
+      LOGGER.info("Worker started.");
       ((AbstractRayRuntime)Ray.internal()).loop();
     } catch (Exception e) {
-      LOGGER.error("Error occurred in worker.", e);
+      LOGGER.error("Failed to start worker.", e);
     }
   }
 }
