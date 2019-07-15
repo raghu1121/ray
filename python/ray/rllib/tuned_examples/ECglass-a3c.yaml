@@ -1,0 +1,17 @@
+# Runs on a single g3.16xl node
+# See https://github.com/ray-project/rl-experiments for results
+Ecglass-a3c:
+    env:  ECglass-v0
+    run:  A3C
+    stop:
+        timesteps_total: 4000000
+    config:
+
+        num_workers: 6
+
+    trial_resources:
+        cpu: 0.5
+        gpu: 1
+
+    checkpoint_freq: 1
+    local_dir: "/media/raghu/6A3A-B7CD/ray_results/A3C"

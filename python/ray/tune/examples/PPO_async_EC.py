@@ -5,6 +5,7 @@ from __future__ import print_function
 
 import argparse
 import ray
+import random
 from ray.tune import grid_search, run_experiments
 from ray.tune.schedulers import AsyncHyperBandScheduler
 import ray.tune as tune
@@ -23,44 +24,45 @@ if __name__ == "__main__":
     ahb = AsyncHyperBandScheduler(
         time_attr="training_iteration",
         reward_attr="episode_reward_max",
-        grace_period=2000,
-        max_t=20000
+        grace_period=10,
+        max_t=20000,
 
     )
 
     run_experiments(
         {
-            "asynchyperband_EC_dqn": {
-                "run": 'DQN',
+            "asynchyperband_ppo": {
+                "run": 'PPO',
                 "env":'ECglass-v0',
                 "stop": {
-                    "timesteps_total": 8000000,
-                    # "training_iteration": 1 if args.smoke_test else 99999
+                    "timesteps_total": 4000000,
+
                 },
                 "num_samples": 5,
 
                 "resources_per_trial": {
-                    "cpu": 1,
-                    "gpu": 0.2
+                    "cpu": 0.7,
+                    "gpu": 0.15
                 },
                 "config": {
-                    "hiddens":tune.grid_search([[1024,512]]),
+                    "gamma": 0,
+                    "kl_coeff": 1.0,
+                    "num_workers": 1,
+                    "num_gpus": 1,
+                    "model": {
+                        "free_log_std": True
+                    },
 
-                    "learning_starts": 64,
-                    "buffer_size": 1000000,
-                    "exploration_fraction": 1,
-                    "train_batch_size":tune.grid_search([150,200,250]),
-                    "gamma":0,
-                    "exploration_final_eps":tune.grid_search([0.05,0.03]),
-                    #"exploration_final_eps": 0.05,
-                    #"num_workers": 2,
-                    "lr": tune.grid_search([0.00001,0.00005]),
-                    "target_network_update_freq":tune.grid_search([3500,7000,10500]),
-                    "timesteps_per_iteration": 3499,
-                    "schedule_max_timesteps": 7000000
+                    "lambda": lambda spec:  random.uniform(0.9, 1.0),
+                    "clip_param": lambda spec: random.uniform(0.01, 0.5),
+                    "lr": lambda spec: random.uniform(5e-4, 1e-6),
+                    "num_sgd_iter": lambda spec:  random.randint(1, 30),
+                    "sgd_minibatch_size": lambda spec:  random.randint(128, 16384),
+                    "train_batch_size":lambda spec: random.randint(2000, 160000),
+
 
                 },
-                "checkpoint_freq": 1,
+                "checkpoint_freq": 5,
                 "local_dir": "/media/raghu/6A3A-B7CD/ray_results"
             }
         },
